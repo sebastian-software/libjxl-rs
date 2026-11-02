@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   port:
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:

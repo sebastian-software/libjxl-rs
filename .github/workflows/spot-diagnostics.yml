@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   original-source:
+    defaults:
+      run:
+        shell: bash
     runs-on: ubuntu-latest
     env:
       CC: clang
@@ -45,6 +48,7 @@ jobs:
         env:
           RUST_TEST_THREADS: 2
         run: |
+          set -o pipefail
           mkdir -p target/spot-rust
           spot_failure=0
           for graph in oracle oracle-asan; do

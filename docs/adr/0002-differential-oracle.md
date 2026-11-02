@@ -295,3 +295,21 @@ contraction keep their existing configuration. No strict-FP option is needed
 for Spot. The dedicated native diagnostic workflow additionally runs Debug,
 Release and Rust 1.85 against both selected graphs; those Rust results remain
 a distinct acceptance gate from the original-source configuration audit.
+
+The selected native source audit passed, while the original Rust Release build
+still failed the exceptional-sample and repeated-row groups in both source
+graphs. Debug and Rust 1.85 passed all five groups and four native regressions.
+For the existing request `spot-sample 0 0 2143363909 2143363909 2143363909 0
+4290917462 0`, both selected source graphs and independently rebuilt pristine
+`-O0` graphs return RGB word `2143363909`; optimized Rust returned `4290917462`.
+Linux x86-64 therefore retains each source multiplication and final addition
+through a separate binary32 function boundary. The subtraction and literal
+operand tree stay unchanged; ARM and other targets retain their existing
+contraction mapping. No request or expected word changes.
+
+Native Rust acceptance requires the complete unchanged corpus in Debug,
+Release and Rust 1.85 against both selected source graphs after this mapping.
+The diagnostic workflow explicitly enables Bash pipeline failure propagation
+while collecting every configuration's log. A successful source audit or overall
+workflow conclusion alone is insufficient: verify all six actual test results
+and exact request counts before the full local gates or integration.
