@@ -1,0 +1,51 @@
+name: Spot numeric diagnostics
+
+on:
+  push:
+    branches: [diag/spot-numeric]
+
+permissions:
+  contents: read
+
+jobs:
+  original-source:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Initialize pristine source and dependencies
+        run: |
+          git submodule update --init --depth 1 upstream/libjxl
+          git -C upstream/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
+      - name: Install the Rust request-generator toolchain
+        run: rustup toolchain install stable --profile minimal
+      - name: Install the reference standard library
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc++-dev libc++abi-dev
+      - name: Record native compiler and CPU
+        run: |
+          rustc -vV
+          clang++ --version
+          lscpu
+      - name: Build unchanged original graphs
+        run: |
+          cmake -S tools/oracle -B target/oracle -DCMAKE_BUILD_TYPE=Release -DORACLE_SANITIZERS=OFF
+          cmake --build target/oracle --target jxl_oracle --parallel 2
+          cmake -S tools/oracle -B target/oracle-asan -DCMAKE_BUILD_TYPE=Release -DORACLE_SANITIZERS=ON
+          cmake --build target/oracle-asan --target jxl_oracle --parallel 2
+      - name: Compare actual pristine source candidates
+        run: python3 tools/spot_reference.py --output target/spot-diagnostics
+      - name: Retain complete original evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: spot-original-native-linux
+          path: target/spot-diagnostics
+          if-no-files-found: error
+          retention-days: 7
