@@ -89,6 +89,7 @@ There are no C++ runtime fallbacks and no placeholder codec APIs. The source rev
 | `base/rect.h` | `base/rect.rs` | Unsigned Rect coordinates, crop/intersection, translation, shifts, and extension; signed instantiations and image/row accessors unported |
 | `pack_signed.h` | `pack_signed.rs` | Signed packing and pointer-width unpacking |
 | `compressed_dc.cc` | `compressed_dc.rs` | Complete scalar DequantDC and AdaptiveDCSmoothing, source storage swaps and null-pool row traversal |
+| `render_pipeline/stage_spot.h`, `.cc` | `render_pipeline/stage_spot.rs` | Complete scalar SpotColorStage and factory, borrowed/live color coefficients, wrapped channel-offset queries, original row guards and ordered spot overlays; complete-file extra-channel rendering remains separate |
 | `render_pipeline/stage_epf.h`, `.cc` | `render_pipeline/stage_epf.rs` | Complete scalar EPF0/EPF1/EPF2 stages, Weight, factories, borrowed/shared sigma, and original simple-pipeline scheduling; complete-file integration remains separate |
 | `epf.cc` (`ComputeSigma`) | `epf.rs` | Complete block sigma generation and mirrored borders; scalar filtering stages are mapped separately |
 | `loop_filter.h`, `.cc` | `loop_filter.rs` | Gaborish/EPF parameter fields, defaults, validation, and padding; scalar decoder Gaborish stage tracked above, EPF kernels mapped separately |
@@ -1371,3 +1372,32 @@ original compiler-dependent NaN operand ambiguity and ownership mapping. No old
 cases, expected words, source pins, sanitizer flags, or original archive options
 change. Complete-file EPF admission and image evidence are a separate integration
 milestone, so the README's EPF checkbox remains open here.
+## Scalar spot-color rendering
+
+The complete pinned `stage_spot.{h,cc}` boundary adds five differential groups
+and 91,072 exact original requests: 80 factory/channel/guard observations,
+65,536 four-operand exceptional-word combinations, 24,832 finite/subnormal and
+deterministic random-word samples, 504 complete-row observations, and 120 actual
+simple-pipeline sequences. The row observations include three consecutive calls
+with mutations to the same externally owned color array, nonzero row origins,
+empty spans with valid backing, rejected extra spans, untouched padding, the spot
+plane and ignored channels. Real pipelines include reverse group submission and
+one to three distinct spot stages in source order. Four Rust-only regressions
+retain independently observed dyadic pixels, live coefficients, guard ordering,
+wrapped factory queries and raw signaling-NaN copies.
+
+The original factory and row implementation are included unchanged in their
+dedicated observation unit. It retains the normal scalar numeric options and all
+sanitizer instrumentation. The stage borrows its four coefficients for its
+entire lifetime; the safe `Cell` binding also preserves source-pointee mutations
+between calls. Neither binding copies the color array into stage state. Channel
+offset addition wraps as source `size_t`; offsets that wrap onto RGB are tested
+only through factory queries, since row execution would violate the source's
+restricted-pointer aliasing precondition. Complete-file metadata admission,
+extra-channel decoding and spot-stage scheduling remain decoder integration work.
+
+Both full local gates passed all six ordinary/ASan/UBSan Debug, Release and
+Rust 1.85 configurations: 442 tests, 257 differential groups and 966,751 exact
+requests each, with no failures or ignored tests. Native Linux/macOS CI remains
+required before integration; component evidence does not complete the README's
+general extra-channel milestone.

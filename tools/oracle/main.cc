@@ -475,6 +475,7 @@ bool SharedPrimitivesCommand(const std::string& command,std::istringstream& in,J
 bool ModularFrameDecoderCommand(const std::string& command,std::istringstream& in,JxlMemoryManager* mm);
 bool RenderPipelineCommand(const std::string& command,std::istringstream& in,JxlMemoryManager* mm);
 bool ModularGroupsCommand(const std::string& command,std::istringstream& in,JxlMemoryManager* mm);
+bool SpotCommand(const std::string&,std::istringstream&,JxlMemoryManager*);
 bool EPFCommand(const std::string&,std::istringstream&,JxlMemoryManager*);
 bool GaborishStageCommand(const std::string& command,std::istringstream& in,JxlMemoryManager* mm);
 bool UpsamplingCommand(const std::string& command,std::istringstream& in,JxlMemoryManager* mm);
@@ -554,6 +555,7 @@ int main() {
       else if (ModularFrameDecoderCommand(command, in, &mm)) {}
       else if (RenderPipelineCommand(command, in, &mm)) {}
       else if (ModularGroupsCommand(command, in, &mm)) {}
+      else if (SpotCommand(command, in, &mm)) {}
       else if (EPFCommand(command, in, &mm)) {}
       else if (GaborishStageCommand(command, in, &mm)) {}
       else if (UpsamplingCommand(command, in, &mm)) {}

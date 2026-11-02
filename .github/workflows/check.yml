@@ -2,7 +2,7 @@ name: Checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/decoder-spot-color]
   pull_request:
 
 permissions:

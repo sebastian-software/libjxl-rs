@@ -6,6 +6,7 @@ pub mod stage_cms;
 pub mod stage_epf;
 pub mod stage_from_linear;
 pub mod stage_gaborish;
+pub mod stage_spot;
 pub mod stage_tone_mapping;
 pub mod stage_upsampling;
 pub mod stage_xyb;

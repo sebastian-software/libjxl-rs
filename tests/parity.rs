@@ -98,6 +98,9 @@ mod modular_groups;
 #[path = "parity/modular_pixels.rs"]
 mod modular_pixels;
 
+#[path = "parity/spot_color.rs"]
+mod spot_color;
+
 #[path = "parity/epf.rs"]
 mod epf;
 #[path = "parity/gaborish_stage.rs"]
@@ -757,6 +760,7 @@ fn observe(request: &str) -> String {
         kind if modular_groups::handles(kind) => modular_groups::observe(kind, &mut args),
         kind if dct::handles(kind) => dct::observe(kind, &mut args),
         kind if block_context::handles(kind) => block_context::observe(kind, &mut args),
+        kind if spot_color::handles(kind) => spot_color::observe(kind, &mut args),
         kind if epf::handles(kind) => epf::observe(kind, &mut args),
         kind if gaborish_stage::handles(kind) => gaborish_stage::observe(kind, &mut args),
         kind if upsampling::handles(kind) => upsampling::observe(kind, &mut args),

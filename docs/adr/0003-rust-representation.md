@@ -1118,3 +1118,14 @@ The pipeline order remains EPF0 for at least three iterations, EPF1 for at least
 one, and EPF2 for at least two. Scalar operator boundaries preserve the selected
 original reference configuration in ADR 0002; other target specializations remain
 separate work.
+Spot-color stages retain a borrow of the original four-coefficient array rather
+than snapshotting it. The ordinary factory borrows `[f32; 4]`, matching immutable
+frame metadata in the reached decoder pipeline; the `Cell<f32>` array factory
+permits safe writes to that same external pointee between calls. Alpha scale is
+read once after the extra-span guard, while each color coefficient is read at
+the original channel/x loop point. No metadata owner is cloned or redesigned.
+The source's `size_t` channel-offset addition wraps explicitly; wrapped RGB
+aliases are query-only because processing them would violate the original
+`JXL_RESTRICT` row-pointer precondition. RGB arithmetic uses the existing target
+scalar multiply/add mapping, with exact operand-word coverage against the actual
+original stage rather than a new interpolation formula.
