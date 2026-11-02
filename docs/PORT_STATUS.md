@@ -1387,17 +1387,32 @@ retain independently observed dyadic pixels, live coefficients, guard ordering,
 wrapped factory queries and raw signaling-NaN copies.
 
 The original factory and row implementation are included unchanged in their
-dedicated observation unit. It retains the normal scalar numeric options and all
-sanitizer instrumentation. The stage borrows its four coefficients for its
-entire lifetime; the safe `Cell` binding also preserves source-pointee mutations
+dedicated observation unit. Native Linux x86-64 optimized ordinary/ASan source
+objects disagreed on 3,074 existing exceptional requests. Scoped `-O0` in that
+unit alone retains scalar source boundaries: all 91,072 native source requests
+agree, and all 35,314 finite-input/no-arithmetic observations match both untouched
+default graphs. `tools/spot_reference.py --audit --output <new-directory>` keeps
+that separate source audit durable. Other original units, ARM numeric options
+and every sanitizer flag remain unchanged. Native selected Rust Debug/MSRV passed
+all five groups and four native regressions, but Release failed two groups in
+both source graphs because optimized Rust changed competing-NaN operand priority.
+Only Linux x86-64 now keeps the literal multiplications and final addition through
+separate binary32 boundaries; ARM retains its existing contraction site. The
+corrected native six-configuration Rust gate passes in diagnostic
+[run 41478003739](https://github.com/sebastian-software/libjxl-rs/actions/runs/41478003739)
+at `8331af9`: all six actual test logs retain five groups, 91,072 exact requests
+and four native regressions with no failures or ignored tests. Its workflow
+explicitly propagates failed test pipelines while retaining all logs. The stage
+borrows its four coefficients for its entire lifetime; the safe `Cell` binding also preserves source-pointee mutations
 between calls. Neither binding copies the color array into stage state. Channel
 offset addition wraps as source `size_t`; offsets that wrap onto RGB are tested
 only through factory queries, since row execution would violate the source's
 restricted-pointer aliasing precondition. Complete-file metadata admission,
 extra-channel decoding and spot-stage scheduling remain decoder integration work.
 
-Both full local gates passed all six ordinary/ASan/UBSan Debug, Release and
-Rust 1.85 configurations: 442 tests, 257 differential groups and 966,751 exact
-requests each, with no failures or ignored tests. Native Linux/macOS CI remains
-required before integration; component evidence does not complete the README's
-general extra-channel milestone.
+After the Linux numeric correction, both full local ARM gates pass all six
+ordinary/ASan/UBSan Debug, Release and Rust 1.85 configurations: 442 tests,
+257 differential groups and 966,751 exact requests each, with no failures or
+ignored tests. Current-main integration and its complete local/native gates
+remain required; component evidence does not complete the README's general
+extra-channel milestone.

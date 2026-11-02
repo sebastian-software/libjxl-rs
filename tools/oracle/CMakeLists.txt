@@ -80,6 +80,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   # Retain pristine Highway scalar operator boundaries in this new TU only.
   set_source_files_properties(epf.cc PROPERTIES COMPILE_OPTIONS "-O0;-fno-rtti;-fno-access-control")
   set_source_files_properties(spot_color.cc PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fno-access-control")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+    # Native O3 ordinary/ASan original Spot objects differ on 3,074 existing
+    # exceptional requests. Retain pristine scalar expression boundaries only
+    # in this observer. ARM contraction and original archive options stay intact.
+    set_property(SOURCE spot_color.cc APPEND PROPERTY COMPILE_OPTIONS -O0)
+  endif()
   set_source_files_properties(group_render.cc PROPERTIES COMPILE_OPTIONS -fno-rtti)
   set_source_files_properties(group_schedule.cc PROPERTIES COMPILE_OPTIONS -fno-access-control)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
