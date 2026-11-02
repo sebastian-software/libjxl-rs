@@ -44,3 +44,7 @@ jobs:
       - name: Audit the EPF numeric reference configuration
         if: always() && runner.os == 'Linux'
         run: python3 tools/epf_reference.py
+
+      - name: Audit the Spot numeric reference configuration
+        if: always() && runner.os == 'Linux'
+        run: python3 tools/spot_reference.py --audit --output target/spot-reference

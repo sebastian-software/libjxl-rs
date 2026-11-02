@@ -274,3 +274,24 @@ selected rows to agree between ordinary and instrumented graphs. Keep exceptiona
 float words exact and revisit this configuration with source/compiler/target or
 instrumentation changes. This is a reproducible numeric reference configuration,
 not performance evidence.
+
+
+The pristine scalar SpotColorStage observation unit uses scoped `-O0` only on
+Linux x86-64. Native ordinary and ASan/UBSan `-O3` original objects disagreed on
+3,074 of the existing 91,072 requests, including different RGB NaN payloads
+within one row. Both the active observation unit and untouched archive objects
+demonstrated that disagreement. Native independently compiled pristine `-O0`
+objects agreed on every request and matched both default graphs on all 34,946
+finite-input and 368 no-arithmetic observations. The finite-input corpus retains
+overflow/cancellation results; no-arithmetic cases retain raw exceptional words
+through factory queries, rejected extra spans and empty valid rows.
+
+`tools/spot_reference.py --audit --output <new-directory>` retains all actual
+Rust-generated requests, actual factory/row link maps, default-archive and
+independent selected objects, complete output words, and source/object hashes.
+It requires ordinary/ASan agreement and every finite/no-arithmetic cross-default
+comparison. The original archive, other units, sanitizer flags and ARM scalar
+contraction keep their existing configuration. No strict-FP option is needed
+for Spot. The dedicated native diagnostic workflow additionally runs Debug,
+Release and Rust 1.85 against both selected graphs; those Rust results remain
+a distinct acceptance gate from the original-source configuration audit.

@@ -1387,8 +1387,14 @@ retain independently observed dyadic pixels, live coefficients, guard ordering,
 wrapped factory queries and raw signaling-NaN copies.
 
 The original factory and row implementation are included unchanged in their
-dedicated observation unit. It retains the normal scalar numeric options and all
-sanitizer instrumentation. The stage borrows its four coefficients for its
+dedicated observation unit. Native Linux x86-64 optimized ordinary/ASan source
+objects disagreed on 3,074 existing exceptional requests. Scoped `-O0` in that
+unit alone retains scalar source boundaries: all 91,072 native source requests
+agree, and all 35,314 finite-input/no-arithmetic observations match both untouched
+default graphs. `tools/spot_reference.py --audit --output <new-directory>` keeps
+that separate source audit durable. Other original units, ARM numeric options
+and every sanitizer flag remain unchanged. Native selected Rust Debug/Release/
+MSRV acceptance is a separate gate. The stage borrows its four coefficients for its
 entire lifetime; the safe `Cell` binding also preserves source-pointee mutations
 between calls. Neither binding copies the color array into stage state. Channel
 offset addition wraps as source `size_t`; offsets that wrap onto RGB are tested

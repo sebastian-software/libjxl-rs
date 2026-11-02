@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diagnose pristine SpotColorStage objects without selecting a configuration.
+"""Audit or diagnose the pristine SpotColorStage numeric reference.
 
 All requests come from the existing Rust fixture generators. Temporary links
 call actual original stage factories; no pixel algorithm or expected word is
@@ -146,6 +146,8 @@ def build_reference(build, directory, options=None, default=False):
             command[i] = '-MF' + str(directory / 'spot_color.cc.o.d')
         elif flag.startswith('-dependency-file='):
             command[i] = '-dependency-file=' + str(directory / 'spot_color.cc.o.d')
+    if options and '-O0' in options:
+        command = [arg for arg in command if arg != '-O0']
     command.extend(options or [])
     subprocess.run(command, cwd=build, check=True)
     link = shlex.split((build / 'CMakeFiles/jxl_oracle.dir/link.txt').read_text())
@@ -159,6 +161,36 @@ def build_reference(build, directory, options=None, default=False):
     (directory / 'object.asm').write_text(subprocess.check_output(dump + [str(obj)], text=True))
     return binary, {'compile': command, 'link': link, 'bindings': bound,
                     'object_sha256': digest(obj), 'binary_sha256': digest(binary)}
+
+
+def selected_binding(build, directory):
+    directory.mkdir(parents=True)
+    entries = json.loads((build / 'compile_commands.json').read_text())
+    entry, = [e for e in entries if Path(e['file']).resolve() == ROOT / 'tools/oracle/spot_color.cc']
+    command = shlex.split(entry['command'])
+    scoped = platform.system() == 'Linux' and platform.machine().lower() in ('x86_64', 'amd64')
+    if command.count('-O0') != int(scoped) or any('ffp-model' in arg for arg in command):
+        raise RuntimeError('Unexpected selected Spot compiler configuration')
+    if '-O3' not in command or any(arg in command for arg in ['-O1', '-O2', '-Ofast']):
+        raise RuntimeError('Original scalar compile options changed')
+    original, = [e for e in entries if Path(e['file']).resolve() ==
+                 ROOT / 'upstream/libjxl/lib/jxl/render_pipeline/stage_spot.cc']
+    original_command = shlex.split(original['command'])
+    if '-O3' not in original_command or '-O0' in original_command or any('ffp-model' in arg for arg in original_command):
+        raise RuntimeError('Untouched original archive Spot options changed')
+    for flags in [command, original_command]:
+        if ('-asan' in build.name) != ('-fsanitize=address,undefined' in flags):
+            raise RuntimeError('Spot original sanitizer instrumentation changed')
+    link = shlex.split((build / 'CMakeFiles/jxl_oracle.dir/link.txt').read_text())
+    mapping, binary = directory / 'selected.map', directory / 'jxl_oracle'
+    link[link.index('-o') + 1] = str(binary)
+    link.append('-Wl,-map,' + str(mapping) if sys.platform == 'darwin' else '-Wl,-Map,' + str(mapping))
+    subprocess.run(link, cwd=build, check=True)
+    return {'kind': 'isolated-O0' if scoped else 'unchanged-original-options',
+            'compile': command, 'original_archive_compile': original_command,
+            'bindings': binding(mapping.read_text(), True),
+            'active_object_sha256': digest(build/'CMakeFiles/jxl_oracle.dir/spot_color.cc.o'),
+            'map_sha256': digest(mapping)}
 
 
 def observe(binary, cases, path):
@@ -203,6 +235,8 @@ def active_files(builds):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--audit', action='store_true',
+                        help='Require the selected source to agree exactly and retain finite/default equivalence')
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -231,8 +265,10 @@ def main():
               'rust_generator_sha256': digest(ROOT/'tests/parity/spot_color.rs'),
               'groups': dict(zip(GROUPS, COUNTS)), 'requests': len(cases),
               'classification_counts': dict(Counter(classes)), 'objects': {}, 'comparisons': {},
-              'active_files_before': before, 'configuration_selected': False}
+              'active_files_before': before, 'configuration_selected': False, 'audit': args.audit}
     for graph, build in zip(['ordinary', 'sanitizers'], builds):
+        if args.audit:
+            report['objects'][f'selected-{graph}'] = selected_binding(build, output/f'selected-{graph}')
         observe(build/'jxl_oracle', cases, output/f'active-{graph}.txt.gz')
         binary, record = build_reference(build, output/f'default-{graph}', default=True)
         report['objects'][f'default-{graph}'] = record
@@ -242,7 +278,22 @@ def main():
         report['comparisons'][label] = result
         print(f'{label}: {result["compared"]} compared, {len(result["mismatches"])} mismatches', flush=True)
         return result
-    record('active ordinary/ASan', 'active-ordinary.txt.gz', 'active-sanitizers.txt.gz')
+    selected = record('active ordinary/ASan', 'active-ordinary.txt.gz', 'active-sanitizers.txt.gz')
+    if args.audit and selected['mismatches']:
+        raise RuntimeError('Selected actual original Spot graphs disagree')
+    if args.audit:
+        for graph in ['ordinary', 'sanitizers']:
+            for default in ['ordinary', 'sanitizers']:
+                finite = record(f'selected finite/no-arithmetic {graph}/default-{default}',
+                                f'active-{graph}.txt.gz', f'default-{default}.txt.gz', True)
+                if finite['mismatches']:
+                    raise RuntimeError('Selected Spot changed a finite/no-arithmetic default observation')
+        if not (platform.system() == 'Linux' and platform.machine().lower() in ('x86_64', 'amd64')):
+            for graph in ['ordinary', 'sanitizers']:
+                unchanged = record(f'unscoped selected/default {graph}',
+                                   f'active-{graph}.txt.gz', f'default-{graph}.txt.gz')
+                if unchanged['mismatches']:
+                    raise RuntimeError('Unscoped Spot changed an original default observation')
     record('default ordinary/ASan', 'default-ordinary.txt.gz', 'default-sanitizers.txt.gz')
     options = [('O0', ['-O0'])]
     candidate = 0
@@ -255,8 +306,18 @@ def main():
         pair = record(label+' ordinary/ASan', f'{label}-ordinary.txt.gz', f'{label}-sanitizers.txt.gz')
         for graph in ['ordinary', 'sanitizers']:
             for default in ['ordinary', 'sanitizers']:
-                record(label+f' finite/no-arithmetic {graph}/default-{default}',
-                       f'{label}-{graph}.txt.gz', f'default-{default}.txt.gz', True)
+                finite = record(label+f' finite/no-arithmetic {graph}/default-{default}',
+                                f'{label}-{graph}.txt.gz', f'default-{default}.txt.gz', True)
+                if args.audit and finite['mismatches']:
+                    raise RuntimeError('Independent original O0 changed a finite/no-arithmetic observation')
+        if args.audit and platform.system() == 'Linux' and platform.machine().lower() in ('x86_64', 'amd64'):
+            if pair['mismatches']:
+                raise RuntimeError('Independently compiled pristine O0 originals disagree')
+            for graph in ['ordinary', 'sanitizers']:
+                independent = record(f'selected/independent-O0 {graph}',
+                                     f'active-{graph}.txt.gz', f'{label}-{graph}.txt.gz')
+                if independent['mismatches']:
+                    raise RuntimeError('Selected original differs from independent pristine O0')
         if label == 'O0' and pair['mismatches'] and platform.system() == 'Linux' and platform.machine().lower() in ('x86_64', 'amd64'):
             # Only actual source O0 disagreement justifies this second source
             # experiment. Preserve every sanitizer and target option.
@@ -271,10 +332,12 @@ def main():
         if subprocess.check_output(['git', '-C', str(ROOT/name), 'rev-parse', 'HEAD'], text=True).strip() != revision:
             raise RuntimeError('A source/dependency pin changed during diagnostics')
     report['active_files_unchanged'] = True
+    report['configuration_selected'] = args.audit
     report['artifact_hashes'] = {str(p.relative_to(output)): digest(p)
                                 for p in output.rglob('*') if p.is_file()}
     (output/'report.json').write_text(json.dumps(report, indent=2)+'\n')
-    print('All 91,072 actual fixture requests retained. No reference configuration selected.', flush=True)
+    print('All 91,072 actual fixture requests retained. '
+          + ('Selected original audit passed.' if args.audit else 'No reference configuration selected.'), flush=True)
 
 
 if __name__ == '__main__':

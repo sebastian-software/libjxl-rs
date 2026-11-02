@@ -23,7 +23,7 @@ jobs:
           git submodule update --init --depth 1 upstream/libjxl
           git -C upstream/libjxl submodule update --init --depth 1 third_party/highway third_party/brotli third_party/skcms
       - name: Install the Rust request-generator toolchain
-        run: rustup toolchain install stable --profile minimal
+        run: rustup toolchain install stable 1.85 --profile minimal --component rustfmt --component clippy
       - name: Install the reference standard library
         run: |
           sudo apt-get update
@@ -40,12 +40,27 @@ jobs:
           cmake -S tools/oracle -B target/oracle-asan -DCMAKE_BUILD_TYPE=Release -DORACLE_SANITIZERS=ON
           cmake --build target/oracle-asan --target jxl_oracle --parallel 2
       - name: Compare actual pristine source candidates
-        run: python3 tools/spot_reference.py --output target/spot-diagnostics
+        run: python3 tools/spot_reference.py --audit --output target/spot-diagnostics
+      - name: Check focused native Rust against selected actual originals
+        env:
+          RUST_TEST_THREADS: 2
+        run: |
+          mkdir -p target/spot-rust
+          spot_failure=0
+          for graph in oracle oracle-asan; do
+            export JXL_CPP_ORACLE="$PWD/target/$graph/jxl_oracle"
+            cargo test --locked --offline --all-features --test parity --test spot_color spot_ -- --nocapture 2>&1 | tee "target/spot-rust/$graph-debug.log" || spot_failure=1
+            cargo test --locked --offline --release --all-features --test parity --test spot_color spot_ -- --nocapture 2>&1 | tee "target/spot-rust/$graph-release.log" || spot_failure=1
+            cargo +1.85 test --locked --offline --all-features --test parity --test spot_color spot_ -- --nocapture 2>&1 | tee "target/spot-rust/$graph-msrv.log" || spot_failure=1
+          done
+          exit "$spot_failure"
       - name: Retain complete original evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: spot-original-native-linux
-          path: target/spot-diagnostics
+          path: |
+            target/spot-diagnostics
+            target/spot-rust
           if-no-files-found: error
           retention-days: 7
