@@ -29,12 +29,25 @@ Native Linux and macOS CI remains the acceptance gate, in two tiers. A fast
 tier runs for every pull request and on `main`: the static checks and the
 ordinary Linux oracle in parallel partitions, reusing an oracle build cached
 under its exact inputs. It is the required check before a change lands. The deep
-tier runs both oracle graphs on both systems and every audit in parallel jobs,
-building each oracle from source. It runs nightly on `main` and on demand, so a
-regression that only the instrumented graph, macOS, or an audit detects can
-reach `main` for up to a day. A failed nightly run opens or updates an issue, and
-the fix lands forward. Start the deep tier on a branch before merging a change
-that touches an oracle, a sanitizer, or audit inputs.
+tier runs both oracle graphs and every audit in parallel jobs, building each
+oracle from source. It runs nightly on `main` on Linux and macOS, and on demand
+on Linux (macOS only when the run sets `macos`), so a regression that only the
+instrumented graph, macOS, or an audit detects can reach `main` for up to a day.
+A failed nightly run opens or updates an issue, and the fix lands forward. Start
+the deep tier on a branch before merging a change that touches an oracle, a
+sanitizer, or audit inputs.
+
+Until the first release, hosted macOS jobs do not gate pull requests. The
+organization shares few hosted macOS runners, and a deep gate waited about 40
+minutes per macOS job while its Linux jobs started at once; both defects the
+deep gate found on 2026-11-05 were Linux-only. Development happens on macOS
+ARM64, so a change that touches ported code lands only after the full local
+`python3 tools/check.py` passes on macOS — with `--sanitizers` when it touches
+an oracle, a sanitizer setting, or audit inputs — and the pull request records
+the command and its result. A local run is not hosted evidence: the nightly
+deep gate supplies that, and a release or an acceptance claim for macOS needs a
+complete hosted macOS deep gate on the exact revision. Revisit this when macOS
+runners stop being scarce or before the first release.
 
 Compare encoded bytes and bit counts, decoded values, exact status codes,
 consumed-bit counters, padding, truncation, and finalization behavior. Include

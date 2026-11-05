@@ -156,11 +156,12 @@ GitHub Actions runs the checks in two tiers:
   the ordinary oracle in four partitions. It reuses a cached oracle build whose
   key covers the submodule revision, `tools/oracle`, the check tools, and the
   compiler.
-- The deep gate adds macOS, the ASan/UBSan oracle on both systems, and every
-  original-source audit, each in its own parallel job. It runs nightly on
-  `main` and on manual dispatch, and builds every oracle from source. A failed
-  nightly run opens an issue titled "Nightly deep check failed", or comments on
-  the open one. Fix such a failure forward in a new pull request.
+- The deep gate adds the ASan/UBSan oracle and every original-source audit,
+  each in its own parallel job, and builds every oracle from source. Nightly
+  runs on `main` cover Linux and macOS. A manual dispatch covers Linux unless
+  it sets the `macos` input. A failed nightly run opens an issue titled
+  "Nightly deep check failed", or comments on the open one. Fix such a failure
+  forward in a new pull request.
 
 The `Checks passed` job summarizes the jobs of a run and is the single required
 status check for pull requests. To run the deep gate on a branch before
@@ -168,10 +169,18 @@ merging, for example after changing an oracle or a sanitizer setting, start it
 manually:
 
 ```sh
-gh workflow run check.yml --ref <branch>
+gh workflow run check.yml --ref <branch>                # Linux deep gate
+gh workflow run check.yml --ref <branch> -f macos=true  # also hosted macOS
 ```
 
 A local result does not imply that those hosted jobs have run.
+
+Hosted macOS jobs do not gate pull requests during development (ADR 0002).
+Instead, run the full `python3 tools/check.py` on macOS ARM64 before merging a
+change to ported code, add `--sanitizers` when the change touches an oracle, a
+sanitizer setting, or audit inputs, and state the command and result in the
+pull request. A release or a macOS acceptance claim needs a complete hosted
+macOS deep gate on the exact revision.
 
 The minimum supported Rust version trails stable by about four releases, or
 about six months. Raise it deliberately at regular intervals in its own change:

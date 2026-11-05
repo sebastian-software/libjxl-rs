@@ -2,11 +2,13 @@ name: Checks
 
 # Two tiers share this workflow. The fast gate runs for every pull request and
 # push to main: static checks, the MSRV compile check, and the checked test
-# profile against the ordinary Linux oracle. The deep gate adds macOS, the
-# ASan/UBSan oracle on both systems, and every audit. It runs nightly on main
-# and on demand, and a failed nightly run opens or updates an issue. Jobs test
-# the deep tier with
+# profile against the ordinary Linux oracle. The deep gate adds the ASan/UBSan
+# oracle and every audit. It runs nightly on main and on demand, and a failed
+# nightly run opens or updates an issue. Jobs test the deep tier with
 #   github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+# Hosted macOS jobs run in the nightly deep gate and in a manual run only when
+# the `macos` input is set; pull requests rely on the local macOS check instead
+# (CONTRIBUTING.md, ADR 0002).
 on:
   pull_request:
   push:
@@ -14,6 +16,11 @@ on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+    inputs:
+      macos:
+        description: Also run the hosted macOS jobs of the deep gate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
+        os: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.macos)) && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
+        os: ${{ fromJSON((github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.macos)) && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
         oracle: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ordinary", "sanitized"]' || '["ordinary"]') }}
         shard: [1, 2, 3, 4]
         # The ordinary macOS oracle needs a sixth of the sanitized time, so it
@@ -120,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON((github.event_name == 'schedule' || inputs.macos) && '["ubuntu-latest", "macos-latest"]' || '["ubuntu-latest"]') }}
         group: [decoder, decoder-state, public-decoder, extra-channels, geometry, components, brotli, diagnostics]
         exclude:
           - { os: macos-latest, group: diagnostics }
